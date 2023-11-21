@@ -1,14 +1,19 @@
 'use client'
 
-import React, { useState } from 'react'
+import { useContractWrite } from 'wagmi'
+import { address, abi } from '../utils/addressAndAbi.json'
+import React, { useState, useEffect } from 'react'
+import { readableDateTimeToUnixTimestamp, unixTimestampToReadableDateTime } from '../utils/convertTime'
+import Swal from 'sweetalert2'
+import Link from 'next/link'
 
 function InputsCreate() {
     const [name, setName] = useState("")
-    const [date, setDate] = useState("")
+    const [date, setDate] = useState<Number>(0)
     const [question, setQuestion] = useState("")
     const [options, setOptions] = useState<string[]>([])
+    const [optionsString, setOptionsString] = useState("")
     const [newOption, setNewOption] = useState("")
-    const [bool, setBool] = useState(false)
 
     const addOption = () => {
         if (newOption) {
@@ -20,6 +25,55 @@ function InputsCreate() {
     const deleteOption = (index: number) => {
         const updatedOptions = options.filter((_, i) => i !== index)
         setOptions(updatedOptions)
+    }
+
+    const handleDateChange = (e: any) => {
+        e.preventDefault()
+        const dateValueInUnix = readableDateTimeToUnixTimestamp(e.target.value)
+        setDate(Number(dateValueInUnix))
+    }
+
+    useEffect(() => {
+        if (options.length !== 0) {
+            setOptionsString(options.join(";"))
+        }
+    }, [options])
+
+    const { data: writeData, isLoading: writeLoading, isSuccess, isError, write } = useContractWrite({
+        address: `0x${address}`,
+        abi: abi,
+        functionName: 'createVote',
+        args: [name, date, question, optionsString]
+    })
+
+    const loading = () => {
+        Swal.fire({
+            title: "Confirm in your wallet",
+            icon: "question",
+            showConfirmButton: false,
+        })
+    }
+
+    const success = () => {
+        Swal.fire({
+            title: "Vote created with success!",
+            text: `Transaction: ${JSON.stringify(writeData)}`,
+            icon: "success",
+            showCloseButton: true,
+            allowEscapeKey: true,
+            confirmButtonText: `<a href="/">Continue</a>`,
+        })
+    }
+
+    const error = () => {
+        Swal.fire({
+            title: "Oops!",
+            text: "There was a problem...",
+            icon: "error",
+            showCloseButton: true,
+            allowEscapeKey: true,
+            confirmButtonText: `<a href="/">Cancel</a>`,
+        })
     }
 
     return (
@@ -41,7 +95,7 @@ function InputsCreate() {
                         type='date' 
                         placeholder='Date' 
                         className="border border-gray-300 p-2 rounded-lg w-4/5 mx-auto shadow-lg"
-                        onChange={(e) => setDate(e.target.value)}
+                        onChange={(e) => handleDateChange(e)}
                     />
                 </label>
                 <label className="my-2 text-center">
@@ -80,21 +134,18 @@ function InputsCreate() {
                     </ul>
                 </div>
                 <button className="mb-2 mt-4 border border-gray-300 p-2 rounded-lg w-4/5 mx-auto shadow-lg bg-gray-300 hover:bg-green-300" 
-                    onClick={() => setBool(true)}>
+                    onClick={() => write()}>
                     Let's go
                 </button>
             </div>
-            {bool && (
-                <div className='text-center'>
-                    <p>Name: {name}</p>
-                    <p>Date: {date}</p>
-                    <p>Question: {question}</p>
-                    {options.map((option, index) => (
-                        <p key={index}>
-                            {option}
-                        </p>
-                    ))}
-                </div>
+            {writeLoading && (
+                loading()
+            )}
+            {isSuccess && (
+                success()
+            )}
+            {isError && (
+                error()
             )}
         </>
     )
