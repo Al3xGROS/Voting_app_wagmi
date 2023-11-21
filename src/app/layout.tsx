@@ -3,7 +3,7 @@ import { Providers } from './providers'
 import '../../global.css'
 
 export const metadata = {
-  title: 'wagmi',
+  title: 'Voting App',
 }
 
 export default function RootLayout({
